@@ -1,35 +1,84 @@
-enum FileSize {
-    Bytes(u64),
-    Kilobytes(f64),
-    Megabytes(f64),
-    Gigabytes(f64),
+use core::f64;
+use std::env;
+
+#[derive(Debug)]
+struct Sizes {
+    bytes: String,
+    kilobytes: String,
+    megabytes: String,
+    gigabytes: String,
 }
 
-fn format_size(size: u64) -> String {
-    let filesize = match size {
-        0..=999 => FileSize::Bytes(size),
-        1000..=999_999 => FileSize::Kilobytes(size as f64 / 1000.0),
-        1_000_000..=999_999_999 => FileSize::Megabytes(size as f64 / 1_000_000.0),
-        _ => FileSize::Gigabytes(size as f64 / 1_000_000_000.0),
-    };
+enum SizeUnit {
+    Bytes,
+    Kylobytes,
+    Megabytes,
+    Gigabytes,
+}
 
-    match filesize {
-        FileSize::Bytes(bytes) => format!("{} bytes", bytes),
-        FileSize::Kilobytes(kb) => format!("{:.2} KB", kb),
-        FileSize::Megabytes(mb) => format!("{:.2} MB", mb),
-        FileSize::Gigabytes(gb) => format!("{:.2} GB", gb),
+impl Sizes {
+    fn from_str(input: &str) -> Result<Self, String> {
+        let (size, unit) = parse_size(input)?;
+        Ok(from_size_and_unit(size, unit))
     }
 }
 
-// In this lab, you will enhance a size formatter application in Rust.
-// You are tasked with extending the application to allow a user to pass in a String representing size and unit,
-// and then returning a debug representation of a struct that shows all the different representations in KB, MB, and GB.
-// This is an example that takes an input and provides the output required:
-// Example:
-// $ cargo run "24 mb"
-// Sizes { bytes: "24000000 bytes", kilobytes: "24000 kilobytes", megabytes: "24 megabytes", gigabytes: "0 gigabytes" }
+fn parse_size(input: &str) -> Result<(f64, SizeUnit), String> {
+    let parts: Vec<&str> = input.trim().split_whitespace().collect();
+
+    if parts.len() != 2 {
+        return Err("Input should be in format like '24 mb'".to_string());
+    }
+
+    let size = match parts[0].parse::<f64>() {
+        Ok(v) => v,
+        Err(_) => return Err("Failed to parse the numeric value".to_string()),
+    };
+
+    let unit = match parts[1].to_lowercase().as_str() {
+        "b" | "bytes" | "byte" => SizeUnit::Bytes,
+        "kb" | "kilobytes" | "kilobyte" | "k" => SizeUnit::Kylobytes,
+        "mb" | "megabytes" | "megabyte" | "m" => SizeUnit::Megabytes,
+        "gb" | "gigabytes" | "gigabyte" | "g" => SizeUnit::Gigabytes,
+        unknown => return Err(format!("Unknown unit: {}. Use b, kb, mb or gb", unknown)),
+    };
+
+    Ok((size, unit))
+}
+
+fn from_size_and_unit(value: f64, unit: SizeUnit) -> Sizes {
+    let bytes = match unit {
+        SizeUnit::Bytes => value,
+        SizeUnit::Kylobytes => value * 1000.0,
+        SizeUnit::Megabytes => value * 1_000_000.0,
+        SizeUnit::Gigabytes => value * 1_000_000_000.0,
+    };
+
+    let kilobytes = bytes / 1000.0;
+    let megabytes = kilobytes / 1000.0;
+    let gigabytes = megabytes / 1000.0;
+
+    Sizes {
+        bytes: format!("{} bytes", bytes as f64),
+        kilobytes: format!("{} kilobytes", kilobytes as f64),
+        megabytes: format!("{} megabytes", megabytes as f64),
+        gigabytes: format!("{} gigabytes", gigabytes as f64),
+    }
+}
 
 fn main() {
-    let result = format_size(6888837399);
-    println!("{}", result)
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("Usage: cargo run \"24 mb\"");
+        std::process::exit(-1);
+    }
+
+    match Sizes::from_str(&args[1]) {
+        Ok(sizes) => println!("{:?}", sizes),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(-1);
+        }
+    }
 }
