@@ -37,10 +37,10 @@ fn _read_stdin<R: BufRead>(reader: &mut R) -> String {
 #[cfg(test)]
 mod tests {
     use super::_read_stdin;
-    use std::io::Cursor;
+    use std::io::{BufRead, Cursor};
 
     #[test]
-    fn test_read_input() {
+    fn test_read_input_with_newline() {
         let input = "Hello, world!\n";
         let expected_output = "Hello, world!";
         let mut reader = Cursor::new(input);
@@ -55,5 +55,45 @@ mod tests {
         let mut reader = Cursor::new(input);
         let output = _read_stdin(&mut reader);
         assert_eq!(output, expected_output);
+    }
+
+    #[test]
+    fn test_read_input_whitespace_at_start() {
+        let input = " Hello world\n";
+        let expected_output = "Hello world";
+        let mut reader = Cursor::new(input);
+        let output = _read_stdin(&mut reader);
+        assert_eq!(output, expected_output);
+    }
+
+    #[test]
+    #[should_panic(expected = "Failed to read input line")]
+    fn test_read_with_error_reader() {
+        struct ErrorReader;
+
+        impl std::io::Read for ErrorReader {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "My Simulated Error",
+                ))
+            }
+        }
+
+        impl std::io::BufRead for ErrorReader {
+            fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "My Simulated Error",
+                ))
+            }
+
+            fn consume(&mut self, amt: usize) {
+                // No-op
+            }
+        }
+        let input = "Hello world ";
+        let mut reader = ErrorReader;
+        _read_stdin(&mut reader);
     }
 }
