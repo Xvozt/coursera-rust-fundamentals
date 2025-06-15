@@ -83,4 +83,14 @@ impl ColorString {
     pub fn reset(&mut self) {
         self.colorized = reset(&self.string);
     }
+
+    pub fn new(color: Color, string: String) -> Self {
+        let mut color_string = ColorString {
+            color,
+            string,
+            colorized: String::new(),
+        };
+        color_string.paint();
+        color_string
+    }
 }
